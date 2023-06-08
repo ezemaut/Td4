@@ -37,28 +37,33 @@ def validacion(inp:list):
         ips.append(input.split(':')[1])
     return val(ips)
 
-ser = []
-ser.append(fwd_server)
-if not val(ser): #Si hay error en -s
+if not val([fwd_server]): #Si hay error en -s
      raise argparse.ArgumentTypeError("Direccion no valida en -s")
 
-lista_predeterminda = vars(args)["d"]
+error = 0
+try:
+    lista_predeterminda = vars(args)["d"]
+    if len(lista_predeterminda) > 0 and not validacion(lista_predeterminda):
+        raise argparse.ArgumentTypeError("Direccion no valida en -d")
+except:
+    error = 1
+    print("Error en input en -d")
 
-if len(lista_predeterminda) > 0 and not validacion(lista_predeterminda):
-    raise argparse.ArgumentTypeError("Direccion no valida en -d")
 ###################################################################################################
-
-
 socket_local = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 socket_local.bind(('0.0.0.0',53))
 print("Hay servidor")
 
 dic_Names_IP = {}
-
-for x in lista_predeterminda:
-    name, ip = x.split(':')
-    dic_Names_IP[name] = ip
-
+try:
+    for x in lista_predeterminda:
+        name, ip = x.split(':')
+        if name:
+            dic_Names_IP[name] = ip
+        else: print("Error en input en -d")
+except:
+    if error != 1:
+     print("Error en input en -d")
 name_list = list(dic_Names_IP) 
 
 # lista_predeterminada contiene las direcciones -d sin el 'www.', ej: ['google.com:1.1.1.1']. Lista de strings
@@ -101,6 +106,7 @@ def predeterminado(scapy_pkt:DNS) -> bool:
             in_list  = True
     
     res = condType and in_list
+    
     return res
 
 def spoof(scapy_pkt:DNS, addr):

@@ -1,14 +1,10 @@
 
-#curl http://www.google.com --resolve www.google.com:80:127.0.0.1
+# curl http://www.google.com --resolve www.google.com:80:127.0.0.1
 
-# -r www.google.com:www.netflix.com
-
-# maximo 1 archivo?
-
+# -r www.google.com:www.https\\:netflix.com
 
 # ncat 127.0.0.1 80
 # GET / HTTP/1.1 Host: www.
-
 
 import argparse
 import socket
@@ -27,21 +23,19 @@ args = parser.parse_args()
 
 archivo:str = vars(args)["c"]
 direcciones_archivo:list = vars(args)['d']
-
-if len(direcciones_archivo)>0 and not archivo:
-    raise argparse.ArgumentTypeError("indicar archivo -c")
-
-
 redirecciones:list = vars(args)["r"]
 
-dic_Pedido_Respueta:dict = {}
 
-for x in redirecciones:
-    # Solo funciona si -r input es igual al de la consigna
-    # ej: www.uba.ar:https://www.utdt.edu
-    #Crea el diccionario para redirecciones
-    Pedido, Res1, Res2 = x.split(':')
-    dic_Pedido_Respueta[Pedido] = Res1 + ":" + Res2 
+dic_Pedido_Respueta:dict = {}
+try:
+    for x in redirecciones:
+        # Solo funciona si -r input es igual al de la consigna
+        # ej: www.uba.ar:https://www.utdt.edu
+        #Crea el diccionario para redirecciones
+        Pedido, Res1, Res2 = x.split(':')
+        dic_Pedido_Respueta[Pedido] = Res1 + ":" + Res2 
+except:
+    print(f"Error al ingresar -d, se guardaron las siguientes redirecciones: {dic_Pedido_Respueta}")
 
 
 def packet_is_good(scapy_pkt:HTTP) -> bool:
@@ -50,13 +44,17 @@ def packet_is_good(scapy_pkt:HTTP) -> bool:
     raw = Raw(scapy_pkt)
     payload:str = (raw[Raw].load).decode()
     if "GET" in payload:
-        global host
-        host:str = payload.split("Host:")[1]
-        host = host.split('\r\n')[0]
-        host = host.strip()
-        print(f'Request GET recibido (Host: {host})')
-        return True
-    
+        try:
+            global host
+            host = payload.split("Host:")[1]
+            host = host.split('\r\n')[0]
+            host = host.strip()
+            print(f'Request GET recibido (Host: {host})')
+            return True
+        except:
+            print("Paquete no tiene Host")
+            return False
+        
 def necesita_archivo() -> bool:
     #Se fija si la direccion recibida esta en direcciones_archivo
     rv:bool = False
@@ -97,7 +95,6 @@ print("Hay servidor")
 socket_local.listen()
 conn, addr = socket_local.accept()
 
-print(f"Connected by {addr}")
 while True:
     message = conn.recv(1024)
     scapy_pkt = HTTP(message)
