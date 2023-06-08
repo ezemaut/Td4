@@ -1,7 +1,6 @@
 import argparse
 import socket
 from scapy.all import DNS, DNSQR, DNSRR
-import time
 
 parser = argparse.ArgumentParser(description='DNS server location and direcctions to spoof')
 parser.add_argument('-s', metavar='--Servidor', type=str, 
