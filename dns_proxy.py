@@ -7,16 +7,16 @@ import argparse
 import socket
 from scapy.all import DNS, DNSQR, DNSRR
 
-parser = argparse.ArgumentParser(description='Poner nombre.')
-parser.add_argument('-s', metavar='N', type=str,
+parser = argparse.ArgumentParser(description='DNS server location and direcctions to spoof')
+parser.add_argument('-s', metavar='--Servidor', type=str, 
                     help='Server DNS')
-parser.add_argument('-d', metavar='N', action='append',
-                    help='Dir web y dir ip')
+parser.add_argument('-d', metavar='--Direcciones', action='append', default=[],
+                    help='Direccion web y direccion ip con un ":" en el medio')
 
 args = parser.parse_args()
 
-server:str = vars(args)["s"]
-if not server: #Si no hay servidor, tira error
+fwd_server:str = vars(args)["s"]
+if not fwd_server: #Si no hay servidor, tira error
         raise argparse.ArgumentTypeError("error: the following arguments are required: -s/--server")
 
 
@@ -43,15 +43,13 @@ def validacion(inp:list):
     return val(ips)
 
 ser = []
-ser.append(server)
+ser.append(fwd_server)
 if not val(ser): #Si hay error en -s
      raise argparse.ArgumentTypeError("Direccion no valida en -s")
 
-ls_pred = []
-if type(vars(args)["d"]) == type(ls_pred):
-        ls_pred = vars(args)["d"]   
+lista_predeterminda = vars(args)["d"]
 
-if not validacion(ls_pred):
+if len(lista_predeterminda) > 0 and not validacion(lista_predeterminda):
     raise argparse.ArgumentTypeError("Direccion no valida en -d")
 ###################################################################################################
 
@@ -59,11 +57,7 @@ if not validacion(ls_pred):
 socket_local = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 socket_local.bind(('0.0.0.0',53))
 print("Hay servidor")
-socket_forward = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 
-lista_predeterminda = []
-for x in ls_pred:
-    lista_predeterminda.append(x[4:])
 dic_Names_IP = {}
 
 for x in lista_predeterminda:
@@ -79,31 +73,30 @@ name_list = list(dic_Names_IP)
 
 # name_list es una lista de las direcciones -d sin el 'www.'. ej:['google.com']
 
-def packet_is_good(pkt:bytes, IP) -> bool:
+def packet_is_good(scapy_pkt:DNS, IP:tuple) -> bool:
     # Chequeamos que no hubo falla en el mandando con opcode == 0
     # Chequeamos que no haya respuetas en el paquete con ancount == 0
     # Si es una query DNS correcta devuelve True y el mensaje de QUERY RECIBIDA
     # TODO Fijarse que onda con NSCOUNT=0 ARCOUNT=0
-    scapy_pkt:DNS = DNS(pkt)
 
-    cond1:bool = scapy_pkt[DNS].opcode == 0 
-    cond2:bool = scapy_pkt[DNS].ancount == 0
+    condType:bool = scapy_pkt["DNS Question Record"].qtype == 1
+    condOpcode:bool = scapy_pkt[DNS].opcode == 0 
+    condAncount:bool = scapy_pkt[DNS].ancount == 0
 
-    dns_es_correcto:bool = cond1 and cond2
+    dns_es_correcto:bool = condType and condOpcode and condAncount
 
     if dns_es_correcto == True:
         qr = scapy_pkt.getlayer(DNSQR)
         type = qr.get_field('qtype').i2repr(qr, qr.qtype)
-        adr = 'www.' + (scapy_pkt["DNS Question Record"].qname).decode()
+        adr = (scapy_pkt["DNS Question Record"].qname).decode()
         print( f"Query recibida: {type} {adr[:-1]} (de {IP[0]}:{IP[1]})")
     else: 
         print("Paquete roto")
 
     return dns_es_correcto  
 
-def predeterminado(pkt:bytes) -> bool:
+def predeterminado(scapy_pkt:DNS) -> bool:
     # Devuelve True si el pkt pide una direccion que esta en la lista para spoofear
-    scapy_pkt:DNS = DNS(pkt)
     res = False
 
     for name in name_list:
@@ -112,12 +105,10 @@ def predeterminado(pkt:bytes) -> bool:
 
     return res
 
-def spoof(pkt:bytes, addr):
+def spoof(scapy_pkt:DNS, addr):
         #Crea la respuesta DNS spoofeada, la devuelve al socket,
         # y printea el mensaje Respondiendo (predeterminado)
-        # TODO Fijarse que onda con NSCOUNT=0 ARCOUNT=0
-        scapy_pkt = DNS(pkt)
-        
+
         qname = (scapy_pkt["DNS Question Record"].qname).decode()
         qname = qname[:-1] #Saca el ultimo caracter (.) para hacerlo compatible con TP
         ip_spoof = dic_Names_IP[qname]
@@ -126,7 +117,6 @@ def spoof(pkt:bytes, addr):
                        an=DNSRR(rrname=scapy_pkt[DNSQR].qname, rdata= ip_spoof, ttl = 80)) 
         
         spf_resp["DNS Question Record"].qname = qname
-        print(spf_resp.show())
 
         socket_local.sendto(bytes(spf_resp), addr)
         print( f'Respondiendo {ip_spoof} (predeterminado)')
@@ -135,34 +125,33 @@ def spoof(pkt:bytes, addr):
 def forward_dns(pkt, addr):
     #Pide la request DNS al servidor deseado y la devuelve al socket
     # y printea el mensaje Respondiendo (vía x.x.x.x)
-
-    socket_forward.sendto(bytes(pkt),(server,53))
+    socket_forward = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+    socket_forward.sendto(bytes(pkt),(fwd_server,53))
     response, r_addr = socket_forward.recvfrom(512)
     #TODO solo mandar si no hay error 
     socket_local.sendto(response, addr)
+    socket_forward.close()
 
     scapy_rsp = DNS(response)
     print(scapy_rsp.show())
     return_addres = (scapy_rsp["DNS Resource Record"].rdata)
-    print(f'Respondiendo {return_addres} (vía {server})')
+    print(f'Respondiendo {return_addres} (vía {fwd_server})')
     return 
 
 while True:
-    message, addr = socket_local.recvfrom(512)
-    
-    if packet_is_good(message, addr):
+    message, addr = socket_local.recvfrom(512)#512 es el maximo para paquetes DNS UDP
+    scpy_pkt = DNS(message)
+    if packet_is_good(scpy_pkt, addr):
 
-        if predeterminado(message):
-            spoof(message, addr)
+        if predeterminado(scpy_pkt):
+            spoof(scpy_pkt, addr)
 
         else:forward_dns(message, addr)
 
-    break
+    
     
     #TODO CERRAR SOCKETs
 
 #Preguntar:
 
-#Cuando terminar el WHILE TRUE:
 #Fijarse que onda con NSCOUNT=0 ARCOUNT=0
-#Que tan perfectas tienen que ser las responses
