@@ -1,3 +1,4 @@
+#Mauter - Garcia Vence - Bedacarratz
 import argparse
 import socket
 from scapy.all import DNS, DNSQR, DNSRR
@@ -166,3 +167,5 @@ while True:
     except:
         pass
         
+
+#Mauter - Garcia Vence - Bedacarratz
