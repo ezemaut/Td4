@@ -40,7 +40,10 @@ def packet_is_good(scapy_pkt:HTTP) -> bool:
     #consigue el Host del paquete
     #y printea el HOST
     raw = Raw(scapy_pkt)
-    payload:str = (raw[Raw].load).decode()
+    try:
+        payload:str = (raw[Raw].load).decode()
+    except:
+        return False
     if "GET" in payload:
         try:
             global host
@@ -91,9 +94,9 @@ socket_local.bind(('0.0.0.0',80))
 print("Hay servidor")
 
 socket_local.listen()
-conn, addr = socket_local.accept()
 
 while True:
+    conn, addr = socket_local.accept()
     message = conn.recv(1024)
     scapy_pkt = HTTP(message)
     
