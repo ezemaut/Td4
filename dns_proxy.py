@@ -1,4 +1,4 @@
-#Mauter - Garcia Vence - Bedacarratz
+#Mautner - Garcia Vence - Bedacarratz
 import argparse
 import socket
 from scapy.all import DNS, DNSQR, DNSRR
@@ -107,22 +107,19 @@ def predeterminado(scapy_pkt:DNS) -> bool:
             in_list  = True
     
     res = condType and in_list
-    
     return res
 
 def spoof(scapy_pkt:DNS, addr):
         #Crea la respuesta DNS spoofeada, la devuelve al socket,
         # y printea el mensaje Respondiendo (predeterminado)
-
         qname = (scapy_pkt["DNS Question Record"].qname).decode()
         qname = qname[:-1] #Saca el ultimo caracter (.) para hacerlo compatible con TP
         ip_spoof = dic_Names_IP[qname]
 
-        spf_resp = DNS(qr=1, id=scapy_pkt[DNS].id, ancount=1, 
-                       an=DNSRR(rrname=scapy_pkt[DNSQR].qname, rdata= ip_spoof, ttl = 80)) 
+        spf_resp = DNS(qr=1, id=scapy_pkt[DNS].id, ancount=1,
+                       an=DNSRR(rrname=scapy_pkt[DNSQR].qname,type = 'A', rdata= ip_spoof, ttl = 80)) 
         
         spf_resp["DNS Question Record"].qname = qname
-
         socket_local.sendto(bytes(spf_resp), addr)
         print( f'[*]Respondiendo {ip_spoof} (predeterminado)')
         return 
@@ -168,4 +165,4 @@ while True:
         pass
         
 
-#Mauter - Garcia Vence - Bedacarratz
+#Mautner - Garcia Vence - Bedacarratz

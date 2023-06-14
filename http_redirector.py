@@ -1,4 +1,4 @@
-#Mauter - Garcia Vence - Bedacarratz
+#Mautner - Garcia Vence - Bedacarratz
 import argparse
 import socket
 from scapy.all import Raw
@@ -116,4 +116,4 @@ while True:
 
 
 
-#Mauter - Garcia Vence - Bedacarratz    
+#Mautner - Garcia Vence - Bedacarratz    
