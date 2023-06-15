@@ -60,7 +60,7 @@ try:
     for x in lista_predeterminda:
         name, ip = x.split(':')
         if name:
-            dic_Names_IP[name] = ip
+            dic_Names_IP[name.strip()] = ip
         else: print("Error en input en -d")
 except:
     if error != 1:
