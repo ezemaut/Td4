@@ -81,7 +81,7 @@ def build_a_packet_301():
     #y printea que lo mando al destino
     if host in dic_Pedido_Respueta.keys():
         destino:str = dic_Pedido_Respueta[host]
-    else: destino = 'https://' + host
+    else: destino = 'https://' + host.split('www.')[1]
     
     http_response = "HTTP/1.1 301 Moved Permanently\r\n"
     http_response += f"Location: {destino}\r\n"
